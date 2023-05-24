@@ -216,9 +216,19 @@ if $add_new_window ; then
     new_args+=("--new-window")
 fi
 
-flatpak="flatpak-spawn --host flatpak"
-# shellcheck disable=SC1091,SC2154
-container_name="$(. /run/.containerenv && echo "$name")"
+### Check if we are inside a container at all
+
+# The install check will proceed as normal. Afterwards we directly run flatpak if we
+# are not inside a container.
+
+if [ -f /run/.containerenv ] ; then
+    flatpak="flatpak-spawn --host flatpak"
+    # shellcheck disable=SC1091,SC2154
+    container_name="$(. /run/.containerenv && echo "$name")"
+else
+    flatpak="flatpak"
+    container_name=""
+fi
 container_name_encoded=$(echo -n "$container_name" | od -t x1 -A none -v | tr -d ' \n')
 
 ### Make sure that we have the Visual Studio Code Flatpak installed
@@ -244,6 +254,11 @@ else
             exit 1
             ;;
     esac
+fi
+
+if [ "$container_name" = "" ] ; then
+   verbose "Not in a toolbox, running Visual Studio Code directly"
+   exec $flatpak run com.visualstudio.code "$@"
 fi
 
 ### Make sure that we have a podman wrapper configured
